@@ -1,0 +1,21 @@
+{
+  "_comment": "Copy to .mcp.json and fill in real values. Never commit .mcp.json.",
+  "mcpServers": {
+    "sap-transport": {
+      "command": "node",
+      "args": ["/absolute/path/to/sap-transport-mcp/dist/index.js"],
+      "env": {
+        "SAP_HOSTNAME": "your-sap-host.example.com",
+        "SAP_SYSNR": "00",
+        "SAP_CLIENT": "100",
+        "SAP_LANGUAGE": "EN",
+        "SAP_SYSTEM_ID": "DEV",
+        "AUTH_METHOD": "basic",
+        "SAP_USERNAME": "YOUR_SAP_USER",
+        "SAP_PASSWORD": "YOUR_SAP_PASSWORD",
+        "LOG_LEVEL": "info",
+        "DRY_RUN": "false"
+      }
+    }
+  }
+}
