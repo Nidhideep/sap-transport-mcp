@@ -2,7 +2,7 @@
 
 MCP server for SAP Change and Transport System (CTS). Gives Claude governed, auditable access to transport requests — list, inspect, create, release, and delete — via the SAP ADT REST API.
 
-Built on [`sap-mcp-server-template`](https://github.com/Nidhideep/sap-mcp-server-template) and governed by the [SAP MCP Server Standard](../personal-enterprise-brain/ontology/mcp/sap-mcp-standard.md).
+Built on [`sap-mcp-server-template`](https://github.com/Nidhideep/sap-mcp-server-template).
 
 ---
 
@@ -33,10 +33,22 @@ Built on [`sap-mcp-server-template`](https://github.com/Nidhideep/sap-mcp-server
 
 | Requirement | Details |
 |-------------|---------|
-| Node.js | v18 or later |
-| SAP user | `S_ADT_RES` authorization, role `SAP_BC_DWB_ABAPDEVELOPER` |
-| ICF service | `/sap/bc/adt/` activated in transaction SICF |
-| Network | HTTPS access to SAP host |
+| Node.js | v18 or later — `node --version` to check |
+| SAP user | `S_ADT_RES` authorization, role `SAP_BC_DWB_ABAPDEVELOPER` (ask your Basis admin if unsure) |
+| ICF service | `/sap/bc/adt/` activated — run transaction `SICF` in SAP GUI, ask Basis admin if not active |
+| Network | HTTPS access to SAP host — VPN required for most on-prem systems |
+| Claude Code | CLI or desktop app installed |
+
+### Finding your SAP connection details
+
+Open **SAP Logon Pad** (or ask your Basis team):
+
+| `.env` variable | Where to find it |
+|-----------------|-----------------|
+| `SAP_HOSTNAME` | SAP Logon → right-click system → Properties → Application Server |
+| `SAP_SYSNR` | SAP Logon → right-click system → Properties → System Number (2 digits, e.g. `00`) |
+| `SAP_CLIENT` | The 3-digit number on the SAP login screen (e.g. `100`) |
+| `SAP_USERNAME` | Your SAP user ID (same as you type to log in) |
 
 ---
 
@@ -73,12 +85,59 @@ SAP_PASSWORD=your_password
 npm run build
 ```
 
-### 4. Register with Claude Code
+### 4. Verify the server starts
+
+```bash
+node dist/index.js
+# Expected output (on stderr): [sap-transport-mcp] server running on stdio
+# Press Ctrl+C to stop
+```
+
+If you see an error like `Environment configuration invalid`, check your `.env` — a required variable is missing or formatted incorrectly.
+
+### 5. Register with Claude Code
+
+There are two ways to register — pick one:
+
+**Option A: Project-level** (only active when Claude Code is opened in this folder)
 
 ```bash
 cp .mcp.example.json .mcp.json
-# Edit .mcp.json — set the absolute path to dist/index.js
 ```
+
+Edit `.mcp.json` — replace `/absolute/path/to/sap-transport-mcp/dist/index.js` with the real path:
+
+```bash
+# Get the absolute path to paste in:
+echo "$(pwd)/dist/index.js"
+```
+
+**Option B: User-level** (active in all Claude Code sessions)
+
+Add the server entry from `.mcp.example.json` into `~/.claude/mcp.json` (create it if it doesn't exist).
+
+**After registering, restart Claude Code** — MCP servers are loaded at startup. Without a restart, the tools will not appear.
+
+### 6. Confirm tools are available
+
+In Claude Code, type:
+```
+What SAP transport tools do you have available?
+```
+
+Claude should list all 8 tools. If it says it has no tools, check [troubleshooting.md](docs/troubleshooting.md#server-not-discovered-by-claude).
+
+### 7. Test safely with DRY_RUN
+
+Before your first real write, set `DRY_RUN=true` in `.env` and rebuild:
+
+```bash
+# In .env:
+DRY_RUN=true
+npm run build
+```
+
+This lets you call any tool — read tools work normally, write tools will be blocked with a clear error instead of executing. Set back to `false` when ready for live use.
 
 ---
 
@@ -160,8 +219,8 @@ See [docs/troubleshooting.md](docs/troubleshooting.md) for:
 
 ## Reference
 
-- [SAP MCP Server Standard](../personal-enterprise-brain/ontology/mcp/sap-mcp-standard.md)
 - [Transport Field Reference](docs/transport-field-reference.md)
 - [Authentication Setup](docs/authentication.md)
 - [Governance Policy](docs/governance.md)
 - [Release Workflow Example](examples/release-workflow.md)
+- [SAP ADT Documentation](https://help.sap.com/docs/ABAP_PLATFORM_NEW/c238d694b825421f940829321ffa326a/4ec805126e391014adc9fffe4e204223.html)
