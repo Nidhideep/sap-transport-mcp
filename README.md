@@ -54,7 +54,7 @@ Open **SAP Logon Pad** (or ask your Basis team):
 
 ## Setup
 
-### 1. Clone
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/Nidhideep/sap-transport-mcp
@@ -62,82 +62,82 @@ cd sap-transport-mcp
 npm install
 ```
 
-### 2. Configure
+### 2. Run setup
 
 ```bash
-cp .env.example .env
-# Edit .env with your SAP system details
+npm run setup
 ```
 
-Minimum `.env`:
+This creates `.env` from `.env.example` and generates `.mcp.json` with the absolute path to `dist/src/index.js` already filled in. Safe to re-run — never overwrites an existing `.env`.
+
+### 3. Fill in your SAP credentials
+
+Open `.env` and replace the placeholder values:
+
 ```env
-SAP_HOSTNAME=your-sap-host.example.com
-SAP_SYSNR=00
-SAP_CLIENT=100
-AUTH_METHOD=basic
-SAP_USERNAME=your_user
-SAP_PASSWORD=your_password
+SAP_HOSTNAME=your-sap-host.example.com   # → your real hostname
+SAP_SYSNR=00                              # → 2-digit system number
+SAP_CLIENT=100                            # → 3-digit client number
+SAP_USERNAME=your_user                    # → your SAP user ID
+SAP_PASSWORD=your_password                # → your SAP password
 ```
 
-### 3. Build
+> **Not sure where to find these?** Open SAP Logon Pad → right-click your system → Properties.
+> `SAP_CLIENT` is the 3-digit number on the SAP login screen.
+
+### 4. Build
 
 ```bash
 npm run build
 ```
 
-### 4. Verify the server starts
+### 5. Run preflight check
 
 ```bash
-node dist/index.js
-# Expected output (on stderr): [sap-transport-mcp] server running on stdio
-# Press Ctrl+C to stop
+npm run preflight
 ```
 
-If you see an error like `Environment configuration invalid`, check your `.env` — a required variable is missing or formatted incorrectly.
+This validates every variable, detects any remaining placeholder values, and tests a live HTTPS connection to your SAP system — before you register with Claude Code.
 
-### 5. Register with Claude Code
+Example output when everything is ready:
+```
+  ✓ SAP_HOSTNAME = dev.sap.company.com
+  ✓ SAP_USERNAME is set
+  ✓ dist/src/index.js exists
+  ✓ SAP ADT responded HTTP 200 — connection OK
 
-There are two ways to register — pick one:
-
-**Option A: Project-level** (only active when Claude Code is opened in this folder)
-
-```bash
-cp .mcp.example.json .mcp.json
+All checks passed. You are ready to connect to Claude Code.
 ```
 
-Edit `.mcp.json` — replace `/absolute/path/to/sap-transport-mcp/dist/index.js` with the real path:
+If any check fails, the script tells you exactly what to fix.
 
-```bash
-# Get the absolute path to paste in:
-echo "$(pwd)/dist/index.js"
-```
+### 6. Register with Claude Code
 
-**Option B: User-level** (active in all Claude Code sessions)
+`.mcp.json` was created by `npm run setup` and is ready to use as a **project-level** config (active when Claude Code is opened in this folder).
 
-Add the server entry from `.mcp.example.json` into `~/.claude/mcp.json` (create it if it doesn't exist).
+For **user-level** registration (active in all sessions), copy the server entry into `~/.claude/mcp.json`.
 
-**After registering, restart Claude Code** — MCP servers are loaded at startup. Without a restart, the tools will not appear.
+**Restart Claude Code after registering** — MCP servers load at startup.
 
-### 6. Confirm tools are available
+### 7. Confirm tools are available
 
-In Claude Code, type:
+In Claude Code, ask:
 ```
 What SAP transport tools do you have available?
 ```
 
-Claude should list all 8 tools. If it says it has no tools, check [troubleshooting.md](docs/troubleshooting.md#server-not-discovered-by-claude).
+Claude should list all 8 tools. If not, see [troubleshooting.md](docs/troubleshooting.md).
 
-### 7. Test safely with DRY_RUN
+### 8. First test with DRY_RUN
 
-Before your first real write, set `DRY_RUN=true` in `.env` and rebuild:
+Set `DRY_RUN=true` in `.env`, rebuild, and try the tools — read tools work normally, write tools are blocked safely:
 
 ```bash
-# In .env:
-DRY_RUN=true
+# .env → DRY_RUN=true
 npm run build
 ```
 
-This lets you call any tool — read tools work normally, write tools will be blocked with a clear error instead of executing. Set back to `false` when ready for live use.
+Set back to `false` when ready for live writes.
 
 ---
 

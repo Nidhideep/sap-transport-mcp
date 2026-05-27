@@ -3,7 +3,7 @@
   "mcpServers": {
     "sap-transport": {
       "command": "node",
-      "args": ["/absolute/path/to/sap-transport-mcp/dist/index.js"],
+      "args": ["/absolute/path/to/sap-transport-mcp/dist/src/index.js"],
       "env": {
         "SAP_HOSTNAME": "your-sap-host.example.com",
         "SAP_SYSNR": "00",
