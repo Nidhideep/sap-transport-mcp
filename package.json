@@ -4,11 +4,20 @@
   "description": "MCP server for SAP Change and Transport System (CTS) — governed, auditable transport management via Claude",
   "type": "module",
   "main": "dist/src/index.js",
+  "bin": {
+    "sap-transport-mcp": "dist/src/index.js"
+  },
+  "files": [
+    "dist/",
+    "scripts/",
+    ".env.example",
+    ".mcp.example.json"
+  ],
   "scripts": {
     "setup": "node scripts/setup.js",
     "preflight": "node scripts/preflight.js",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tools config lib --ext .ts"
