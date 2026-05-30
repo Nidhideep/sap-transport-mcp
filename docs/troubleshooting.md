@@ -43,7 +43,20 @@
 Error: `404 Not Found` on any ADT endpoint
 
 Fix: In SAP, go to transaction SICF → navigate to `/sap/bc/adt/` → right-click → Activate Service.
+Also activate `/sap/bc/adt/cts/` (the CTS sub-node) — this is required for all transport tools.
 Requires Basis admin access.
+
+---
+
+## SAP NetWeaver Version Too Old
+
+Error: transport list returns 0 results, or `404` on `/sap/bc/adt/cts/transportrequests`
+
+The `/sap/bc/adt/cts/` ICF node and `transportrequests` REST endpoint were introduced in **SAP NetWeaver 7.56**. Specific Support Packages of 7.40, 7.50, and 7.52 may include a backport — ask your Basis admin to confirm.
+
+Systems running earlier releases will not expose the `transportrequests` endpoint and the transport tools will not return data.
+
+Fix: Upgrade to NetWeaver 7.56+ or apply the relevant CTS ADT support package. Confirm by running `SICF` and checking that `default_host → sap → bc → adt → cts → transportrequests` exists as an active node.
 
 ---
 

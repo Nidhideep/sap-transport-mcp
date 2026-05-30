@@ -34,8 +34,9 @@ Built on [`sap-mcp-server-template`](https://github.com/Nidhideep/sap-mcp-server
 | Requirement | Details |
 |-------------|---------|
 | Node.js | v18 or later — `node --version` to check |
+| SAP NetWeaver | **7.56 or later** (or a patched 7.40/7.50/7.52 SP with the CTS ADT node backport) — the `/sap/bc/adt/cts/` ICF node was introduced in NetWeaver 7.56. Earlier releases do not expose the `transportrequests` REST endpoint and will return unexpected results. Ask your Basis admin to confirm your NetWeaver release and SP level. |
 | SAP user | `S_ADT_RES` authorization, role `SAP_BC_DWB_ABAPDEVELOPER` (ask your Basis admin if unsure) |
-| ICF service | `/sap/bc/adt/` activated — run transaction `SICF` in SAP GUI, ask Basis admin if not active |
+| ICF service | `/sap/bc/adt/` and `/sap/bc/adt/cts/` activated — run transaction `SICF` in SAP GUI, navigate to `default_host → sap → bc → adt → cts` and activate. Ask Basis admin if not active. |
 | Network | HTTPS access to SAP host — VPN required for most on-prem systems |
 | Claude Code | CLI or desktop app installed |
 
