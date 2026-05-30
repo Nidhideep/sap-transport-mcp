@@ -45,9 +45,23 @@ export interface ImportQueueEntry {
 
 /**
  * Maps a raw SAP ADT transport record to a business-friendly summary.
- * Handles both OData JSON (d.results) and XML-parsed objects.
+ * Handles both OData JSON (d.results) and XML-parsed objects (tm: namespace attributes).
  */
 export function mapTransportSummary(raw: Record<string, unknown>): TransportSummary {
+  // XML format from /sap/bc/adt/cts/transportrequests (tm: namespace attributes)
+  if ("tm:number" in raw || "tm:desc" in raw) {
+    const status = String(raw["tm:status"] ?? "");
+    return {
+      transportNumber: String(raw["tm:number"] ?? ""),
+      description: String(raw["tm:desc"] ?? ""),
+      type: String(raw["_category"] ?? "Workbench"),
+      status: status === "D" ? "Modifiable" : status === "L" ? "Released" : status,
+      owner: String(raw["tm:owner"] ?? ""),
+      targetSystem: String(raw["tm:target"] ?? raw["adtcore:responsible"] ?? ""),
+      createdAt: String(raw["adtcore:changedAt"] ?? ""),
+    };
+  }
+  // OData JSON fallback (legacy)
   const date = String(raw["AS4DATE"] ?? raw["as4date"] ?? "");
   const time = String(raw["AS4TIME"] ?? raw["as4time"] ?? "");
   return {
@@ -59,6 +73,87 @@ export function mapTransportSummary(raw: Record<string, unknown>): TransportSumm
     targetSystem: String(raw["TARSYSTEM"] ?? raw["tarsystem"] ?? raw["TargetSystem"] ?? ""),
     createdAt: parseSapDateTime(date, time),
   };
+}
+
+/**
+ * Extracts all transport requests from the parsed XML of
+ * GET /sap/bc/adt/cts/transportrequests response.
+ */
+export function extractTransportRequestsFromXml(
+  parsed: unknown,
+  ownerFilter?: string,
+  statusFilter?: string
+): TransportSummary[] {
+  const root = (parsed as Record<string, unknown>)?.["tm:root"];
+  if (!root || typeof root !== "object") return [];
+
+  const results: TransportSummary[] = [];
+
+  for (const sectionKey of ["tm:workbench", "tm:customizing"]) {
+    const section = (root as Record<string, unknown>)[sectionKey];
+    if (!section || typeof section !== "object") continue;
+    const category = sectionKey === "tm:workbench" ? "Workbench" : "Customizing";
+
+    for (const statusKey of ["tm:modifiable", "tm:released"]) {
+      if (statusFilter === "Modifiable" && statusKey !== "tm:modifiable") continue;
+      if (statusFilter === "Released" && statusKey !== "tm:released") continue;
+
+      const statusSection = (section as Record<string, unknown>)[statusKey];
+      if (!statusSection || typeof statusSection !== "object") continue;
+
+      const requests = (statusSection as Record<string, unknown>)["tm:request"];
+      const reqArray = Array.isArray(requests) ? requests : requests ? [requests] : [];
+
+      for (const req of reqArray) {
+        const r = req as Record<string, unknown>;
+        if (ownerFilter && String(r["tm:owner"] ?? "").toUpperCase() !== ownerFilter.toUpperCase()) continue;
+        results.push(mapTransportSummary({ ...r, _category: category }));
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Extracts tasks from a single transport's XML response.
+ */
+export function extractTasksFromXml(parsed: unknown): TransportTask[] {
+  const root = (parsed as Record<string, unknown>)?.["tm:root"];
+  if (!root || typeof root !== "object") return [];
+
+  const tasks: TransportTask[] = [];
+
+  for (const sectionKey of ["tm:workbench", "tm:customizing"]) {
+    const section = (root as Record<string, unknown>)[sectionKey];
+    if (!section || typeof section !== "object") continue;
+
+    for (const statusKey of ["tm:modifiable", "tm:released"]) {
+      const statusSection = (section as Record<string, unknown>)[statusKey];
+      if (!statusSection || typeof statusSection !== "object") continue;
+
+      const requests = (statusSection as Record<string, unknown>)["tm:request"];
+      const reqArray = Array.isArray(requests) ? requests : requests ? [requests] : [];
+
+      for (const req of reqArray) {
+        const r = req as Record<string, unknown>;
+        const taskRaw = r["tm:task"];
+        const taskArr = Array.isArray(taskRaw) ? taskRaw : taskRaw ? [taskRaw] : [];
+        for (const t of taskArr) {
+          const task = t as Record<string, unknown>;
+          const status = String(task["tm:status"] ?? "");
+          tasks.push({
+            taskNumber: String(task["tm:number"] ?? ""),
+            description: String(task["tm:desc"] ?? ""),
+            owner: String(task["tm:owner"] ?? ""),
+            status: status === "D" ? "Modifiable" : status === "L" ? "Released" : status,
+          });
+        }
+      }
+    }
+  }
+
+  return tasks;
 }
 
 export function mapTransportTask(raw: Record<string, unknown>): TransportTask {
@@ -78,6 +173,40 @@ export function mapTransportObject(raw: Record<string, unknown>): TransportObjec
     objectName: String(raw["OBJ_NAME"] ?? raw["Name"] ?? ""),
     programId: mapProgramId(String(raw["PGMID"] ?? raw["ProgramId"] ?? "")),
   };
+}
+
+/**
+ * Extracts ABAP objects from the parsed XML of a single transport request.
+ * Objects appear as tm:abap_object elements nested under tm:task elements.
+ */
+export function extractObjectsFromXml(parsed: unknown): TransportObject[] {
+  const root = (parsed as Record<string, unknown>)?.["tm:root"];
+  if (!root || typeof root !== "object") return [];
+
+  const objects: TransportObject[] = [];
+
+  function collectObjects(node: unknown): void {
+    if (!node || typeof node !== "object") return;
+    const n = node as Record<string, unknown>;
+
+    const abapObjects = n["tm:abap_object"];
+    const arr = Array.isArray(abapObjects) ? abapObjects : abapObjects ? [abapObjects] : [];
+    for (const obj of arr) {
+      const o = obj as Record<string, unknown>;
+      objects.push({
+        objectType: String(o["tm:type"] ?? ""),
+        objectName: String(o["tm:name"] ?? "").trim(),
+        programId: mapProgramId(String(o["tm:pgmid"] ?? "")),
+      });
+    }
+
+    for (const key of Object.keys(n)) {
+      if (key !== "tm:abap_object") collectObjects(n[key]);
+    }
+  }
+
+  collectObjects(root);
+  return objects;
 }
 
 export function mapImportQueueEntry(raw: Record<string, unknown>): ImportQueueEntry {

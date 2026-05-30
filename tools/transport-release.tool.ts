@@ -65,9 +65,8 @@ export const transportReleaseTool = {
 
       await adtPost(
         system,
-        `/sap/bc/adt/cts/transports/${trkorr}`,
-        undefined,
-        { action: "release" }
+        `/sap/bc/adt/cts/transportrequests/${trkorr}/releasejobs`,
+        undefined
       );
 
       // 3. Verify release succeeded

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getSystem } from "../config/systems.js";
 import { adtGet, debugLog } from "../lib/adt-client.js";
-import { mapTransportObject, type TransportObject } from "../lib/transport-mapper.js";
+import { extractObjectsFromXml, type TransportObject } from "../lib/transport-mapper.js";
 
 export const TransportObjectsInputSchema = z.object({
   transportNumber: z
@@ -37,14 +37,8 @@ export const transportObjectsTool = {
 
     debugLog(`listing objects in ${trkorr} on ${system.id}`);
 
-    const raw = await adtGet<unknown>(
-      system,
-      `/sap/bc/adt/cts/transports/${trkorr}/objects`,
-      { "$format": "json" }
-    );
-
-    const records = Array.isArray(raw) ? raw : [];
-    const objects = records.map((r) => mapTransportObject(r as Record<string, unknown>));
+    const raw = await adtGet<unknown>(system, `/sap/bc/adt/cts/transportrequests/${trkorr}`);
+    const objects = extractObjectsFromXml(raw);
 
     return {
       transportNumber: trkorr,

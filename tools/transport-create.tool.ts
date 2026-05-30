@@ -76,18 +76,18 @@ export const transportCreateTool = {
     try {
       debugLog(`creating transport on ${system.id} type=${input.type}`);
 
-      // SAP ADT CTS: POST body varies by version — XML payload is most compatible
       const xmlBody = buildCreateXml(input.description, TYPE_CODE[input.type] ?? "K", input.targetSystem);
 
       const response = await adtPost<Record<string, unknown>>(
         system,
-        "/sap/bc/adt/cts/transports",
+        "/sap/bc/adt/cts/transportrequests",
         xmlBody,
-        undefined
+        undefined,
+        { "Content-Type": "application/xml" }
       );
 
-      // SAP returns the new transport number in Location header or response body
-      const transportNumber = extractTransportNumber(response);
+      // SAP returns the transport number in the Location header (primary) or response body (fallback)
+      const transportNumber = extractTransportNumber(response.location, response.data);
       if (!transportNumber) {
         throw new Error("SAP did not return a transport number in the create response");
       }
@@ -134,12 +134,13 @@ export const transportCreateTool = {
 };
 
 function buildCreateXml(description: string, typeCode: string, targetSystem?: string): string {
-  const targetAttr = targetSystem ? ` tm:target="${targetSystem}"` : "";
+  const targetAttr = targetSystem ? ` tm:target="${escapeXml(targetSystem)}"` : "";
+  const category = typeCode === "K" ? "Workbench" : "Customizing";
   return `<?xml version="1.0" encoding="UTF-8"?>
-<tm:root xmlns:tm="http://www.sap.com/cts/api/transports">
-  <tm:workbench-request tm:category="${typeCode}"${targetAttr}>
-    <tm:description>${escapeXml(description)}</tm:description>
-  </tm:workbench-request>
+<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" xmlns:adtcore="http://www.sap.com/adt/core">
+  <tm:${category.toLowerCase()} tm:category="${category}"${targetAttr}>
+    <tm:request adtcore:description="${escapeXml(description)}" tm:desc="${escapeXml(description)}"/>
+  </tm:${category.toLowerCase()}>
 </tm:root>`;
 }
 
@@ -152,13 +153,19 @@ function escapeXml(str: string): string {
     .replace(/'/g, "&apos;");
 }
 
-function extractTransportNumber(response: Record<string, unknown>): string | null {
-  // ADT may return it in different places depending on version
+function extractTransportNumber(location: string | null | undefined, body: Record<string, unknown>): string | null {
+  // Primary: SAP ADT returns Location: /sap/bc/adt/cts/transports/GW1K000123
+  if (location) {
+    const match = location.match(/([A-Z]{3}K\d{6})$/);
+    if (match?.[1]) return match[1];
+  }
+
+  // Fallback: some versions embed it in the response body
   const trkorr =
-    response["TRKORR"] ??
-    response["trkorr"] ??
-    response["transportNumber"] ??
-    (response["tm:root"] as Record<string, unknown> | undefined)?.["tm:workbench-request"];
+    body["TRKORR"] ??
+    body["trkorr"] ??
+    body["transportNumber"] ??
+    (body["tm:root"] as Record<string, unknown> | undefined)?.["tm:workbench-request"];
 
   if (typeof trkorr === "string" && trkorr.match(/^[A-Z]{3}K\d{6}$/)) return trkorr;
   return null;

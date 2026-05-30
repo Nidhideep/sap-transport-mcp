@@ -2,9 +2,9 @@ import { z } from "zod";
 import { getSystem } from "../config/systems.js";
 import { adtGet, debugLog } from "../lib/adt-client.js";
 import {
-  mapTransportSummary,
-  mapTransportTask,
-  mapTransportObject,
+  extractTransportRequestsFromXml,
+  extractTasksFromXml,
+  extractObjectsFromXml,
   type TransportDetail,
 } from "../lib/transport-mapper.js";
 
@@ -36,34 +36,22 @@ export const transportGetTool = {
 
     debugLog(`fetching transport ${trkorr} on ${system.id}`);
 
-    // Fetch header, tasks, and objects in parallel
-    const [headerRaw, tasksRaw, objectsRaw] = await Promise.all([
-      adtGet<Record<string, unknown>>(
-        system,
-        `/sap/bc/adt/cts/transports/${trkorr}`,
-        { "$format": "json" }
-      ),
-      adtGet<unknown>(
-        system,
-        `/sap/bc/adt/cts/transports/${trkorr}/tasks`,
-        { "$format": "json" }
-      ).catch(() => []), // tasks may 404 on task-type transports
-      adtGet<unknown>(
-        system,
-        `/sap/bc/adt/cts/transports/${trkorr}/objects`,
-        { "$format": "json" }
-      ).catch(() => []),
-    ]);
+    // Single call returns header + tasks in the XML response
+    const raw = await adtGet<unknown>(system, `/sap/bc/adt/cts/transportrequests/${trkorr}`);
 
-    const tasks = (Array.isArray(tasksRaw) ? tasksRaw : []).map((t) =>
-      mapTransportTask(t as Record<string, unknown>)
-    );
+    const allTransports = extractTransportRequestsFromXml(raw);
+    const summary = allTransports[0] ?? {
+      transportNumber: trkorr,
+      description: "",
+      type: "Workbench",
+      status: "Unknown",
+      owner: "",
+      targetSystem: "",
+      createdAt: "",
+    };
 
-    const objects = (Array.isArray(objectsRaw) ? objectsRaw : []).map((o) =>
-      mapTransportObject(o as Record<string, unknown>)
-    );
-
-    const summary = mapTransportSummary(headerRaw);
+    const tasks = extractTasksFromXml(raw);
+    const objects = extractObjectsFromXml(raw);
 
     return {
       ...summary,

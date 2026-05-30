@@ -61,12 +61,12 @@ export const transportDeleteTool = {
     try {
       debugLog(`deleting transport ${trkorr} on ${system.id} (status: ${current.status})`);
 
-      await adtDelete(system, `/sap/bc/adt/cts/transports/${trkorr}`);
+      await adtDelete(system, `/sap/bc/adt/cts/transportrequests/${trkorr}`);
 
       // 3. Verify: confirm record no longer exists (expect 404)
       let stillExists = false;
       try {
-        await adtGet(system, `/sap/bc/adt/cts/transports/${trkorr}`, { "$format": "json" });
+        await adtGet(system, `/sap/bc/adt/cts/transportrequests/${trkorr}`);
         stillExists = true; // if this succeeds, delete did not work
       } catch {
         stillExists = false; // 404 = successfully deleted

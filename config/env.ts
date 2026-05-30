@@ -26,7 +26,7 @@ const EnvSchema = z.object({
 
   // Operational
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-  DRY_RUN: z.coerce.boolean().default(false),
+  DRY_RUN: z.preprocess((v) => v === "true" || v === true, z.boolean()).default(false),
 });
 
 function loadEnv() {

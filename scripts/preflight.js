@@ -167,7 +167,7 @@ if (!hostname || PLACEHOLDERS.SAP_HOSTNAME.some((p) => hostname.includes(p))) {
       {
         hostname,
         port,
-        path: "/sap/bc/adt/",
+        path: "/sap/bc/adt/discovery",
         method: "GET",
         timeout: 10000,
         rejectUnauthorized: false, // allow self-signed certs during preflight

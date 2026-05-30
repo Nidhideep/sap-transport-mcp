@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getSystem } from "../config/systems.js";
 import { adtGet, debugLog } from "../lib/adt-client.js";
-import { mapTransportSummary, type TransportSummary } from "../lib/transport-mapper.js";
+import { extractTransportRequestsFromXml, type TransportSummary } from "../lib/transport-mapper.js";
 
 export const TransportListInputSchema = z.object({
   owner: z
@@ -44,19 +44,10 @@ export const transportListTool = {
     const input = TransportListInputSchema.parse(rawInput);
     const system = getSystem(input.systemId);
 
-    const params: Record<string, string> = {
-      "$format": "json",
-    };
-    if (input.owner) params["user"] = input.owner;
-    const statusCode = STATUS_FILTER[input.status ?? "All"];
-    if (statusCode) params["status"] = statusCode;
-
     debugLog(`listing transports on ${system.id} owner=${input.owner ?? "any"} status=${input.status}`);
 
-    const raw = await adtGet<unknown[]>(system, "/sap/bc/adt/cts/transports", params);
-
-    const records = Array.isArray(raw) ? raw : [];
-    const transports = records.map((r) => mapTransportSummary(r as Record<string, unknown>));
+    const raw = await adtGet<unknown>(system, "/sap/bc/adt/cts/transportrequests");
+    const transports = extractTransportRequestsFromXml(raw, input.owner, input.status);
 
     return {
       system: system.id,
